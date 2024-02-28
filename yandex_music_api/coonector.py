@@ -63,6 +63,31 @@ class Requsts:
     def de_json(self, responce: ClientResponse):
         return responce.json(loads=orjson.loads)
     
+    async def read(
+        self, 
+        url: str, 
+        **kwargs
+    ) -> str:
+        response = await self.get(url, **kwargs)
+        data_bytes = await response.read()
+        text = data_bytes.decode()
+        await self.close_res(response)
+        return text
+    
+    async def read_json(
+        self, 
+        url: str, 
+        **kwargs
+    ) -> dict:
+        response = await self.get(url, **kwargs)
+        data = await self.de_json(response)
+        await self.close_res(response)
+        return data
+    
+    def close_res(self, responce: ClientResponse) -> Coroutine[Any, Any, None]:
+        responce.release()
+        return responce.wait_for_close()
+    
     def set_authorization(self, token: str) -> None:
         self.headers.update({'Authorization': f'OAuth {token}'})
 

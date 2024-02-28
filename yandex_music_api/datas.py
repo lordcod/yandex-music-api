@@ -44,8 +44,7 @@ class Album:
     
     
     async def get_tracks(self) -> List['Track']:
-        responce = await self.requests.get(f"{self.requests.base_url}/albums/{self.id}/with-tracks")
-        json = await self.requests.de_json(responce)
+        json = await self.requests.read_json(f"{self.requests.base_url}/albums/{self.id}/with-tracks")
         tracks = json["result"]["volumes"]
         return [Track(self.requests, track_data) for datas in tracks for track_data in datas]
 
@@ -89,8 +88,7 @@ class Track:
         self,
         bitrateInKbps: int = 192
     ) -> str:
-        responce = await self.requests.get(f'{self.requests.base_url}/tracks/{self.id}/download-info')
-        json = await self.requests.de_json(responce)
+        json = await self.requests.read_json(f'{self.requests.base_url}/tracks/{self.id}/download-info')
         results = json.get('result', [])
         for res in results:
             if res['bitrateInKbps'] == bitrateInKbps:
@@ -103,8 +101,7 @@ class Track:
         self, 
         downloadInfoUrl: str
     ) -> str:
-        responce = await self.requests.get(downloadInfoUrl)
-        data = await responce.read()
+        data = await self.requests.read(downloadInfoUrl)
         link = self.decode_download_info(data)
         return link
     

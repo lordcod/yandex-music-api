@@ -1,6 +1,5 @@
 from .coonector import Requsts
 from .datas import Album, Artist, Track, Playlist, de_list
-from .exceptions import NotFound
 from typing import Optional, List, Union, Literal
 
 
@@ -21,8 +20,7 @@ class Client:
     
     
     async def account_info(self):
-        responce = await self.requests.get(f"{self.base_url}/account/status")
-        return await self.requests.de_json(responce)
+        return await self.requests.read_json(f"{self.base_url}/account/status")
     
     
     async def search(
@@ -38,12 +36,7 @@ class Client:
             'page': '0',
             'playlist-in-best': 'True'
         }
-        responce = self.requests.get(f'{self.base_url}/search', params=params)
-        
-        if responce.status == 400:
-            raise NotFound(f"{object_type}s not found", request=text)
-
-        json = await self.requests.de_json(responce)
+        json = self.requests.read_json(f'{self.base_url}/search', params=params)
         ostype = object_type+'s' if object_type != 'best' else object_type
         if object_type == 'best':
             return de_list[json['result']['best']['type']](self.requests, json['result']['best']['result'])
@@ -59,11 +52,6 @@ class Client:
 
         url = f"{self.base_url}/{object_type}s{'/list' if object_type == 'playlist' else ''}"
 
-        responce = await self.requests.get(url, params=params)
-        
-        if responce.status == 400:
-            raise NotFound(f"{object_type}s not found", ids=ids)
-        
-        data = await self.requests.de_json(responce)
+        data = await self.requests.read_json(url, params=params)
         res = [de_list[object_type](self.requests, obj) for obj in data.get('result', [])]
         return res
