@@ -15,7 +15,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://lordcord.fun',
     packages=find_packages(),
-    install_requires=['requests>=2.25.1'],
+    install_requires=['orjson>=3.9.15', 'xmltodict>=0.13.0'],
     classifiers=[
         'Programming Language :: Python :: 3.11',
         'License :: OSI Approved :: MIT License',
@@ -23,7 +23,7 @@ setup(
     ],
     keywords='example python',
     project_urls={
-        'Documentation': 'link'
+        'Documentation': 'https://docs.lordcord.fun'
     },
     python_requires='>=3.7'
 )
