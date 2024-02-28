@@ -7,7 +7,7 @@ def readme():
 
 setup(
     name='yandex_music_api',
-    version='0.0.2',
+    version='1.0.1',
     author='LordCode',
     author_email='support@lordcord.fun',
     description='This is my first module',
@@ -15,7 +15,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://lordcord.fun',
     packages=find_packages(),
-    install_requires=['orjson>=3.9.15', 'xmltodict>=0.13.0'],
+    install_requires=['aiohttp>=3.9.3', 'orjson>=3.9.15', 'xmltodict>=0.13.0'],
     classifiers=[
         'Programming Language :: Python :: 3.11',
         'License :: OSI Approved :: MIT License',
