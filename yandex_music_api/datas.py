@@ -1,9 +1,7 @@
+from datetime import datetime
 from .coonector import Requsts
-from hashlib import md5
-import xmltodict
 from typing import List
-
-SIGN_SALT = 'XGRlBW9FXlekgbPrRHuSiA'
+from .util import get_download_info, download_track
 
 
 class Artist:
@@ -14,6 +12,13 @@ class Artist:
         self.name: str = data.get('name')
         self.cover: dict = data.get('cover')
         self.avatar: str = self.cover and self.cover.get('uri')
+
+    async def get_rating_track_ids(self) -> List[int]:
+        url = f"{self.requests.base_url}/artists/{self.id}/track-ids-by-rating"
+        responce = await self.requests.read_json(url)
+        track_ids = responce["result"]["tracks"]
+
+        return track_ids
 
 
 class Playlist:
@@ -41,8 +46,7 @@ class Album:
         self.artists: List[Artist] = [
             Artist(requests, artist) for artist in data.get('artists', [])]
         self.labels: dict = data.get('labels')
-    
-    
+
     async def get_tracks(self) -> List['Track']:
         json = await self.requests.read_json(f"{self.requests.base_url}/albums/{self.id}/with-tracks")
         tracks = json["result"]["volumes"]
@@ -74,44 +78,31 @@ class Track:
     def __str__(self) -> str:
         return f"{self.title} - {' ,'.join(self.artist_names)}"
 
-    def decode_download_info(self, xmldata: str) -> None:
-        data = xmltodict.parse(xmldata)['download-info']
-        host = data.get('host')
-        ts = data.get('ts')
-        path = data.get('path')
-        s = data.get('s')
-        sign = md5((SIGN_SALT + path[1::] + s).encode('utf-8')).hexdigest()
-
-        return f'https://{host}/get-mp3/{sign}/{ts}{path}'
-
-    async def download_info(
-        self,
-        bitrateInKbps: int = 192
-    ) -> str:
-        json = await self.requests.read_json(f'{self.requests.base_url}/tracks/{self.id}/download-info')
-        results = json.get('result', [])
-        for res in results:
-            if res['bitrateInKbps'] == bitrateInKbps:
-                diu = res['downloadInfoUrl']
-                return diu
-        else:
-            raise Exception('bitrateInKbps error')
-
-    async def download_track(
-        self, 
-        downloadInfoUrl: str
-    ) -> str:
-        data = await self.requests.read(downloadInfoUrl)
-        link = self.decode_download_info(data)
-        return link
-    
     async def download_link(
         self,
         bitrateInKbps: int = 192
     ) -> str:
-        url = await self.download_info(bitrateInKbps)
-        link = await self.download_track(url)
+        url = await get_download_info(self.id, self.requests, bitrateInKbps)
+        link = await download_track(self.requests, url)
         return link
+
+
+class LikeTrack:
+    def __init__(self, requests: Requsts, data: dict) -> None:
+        self.requests = requests
+        self.data = data
+        self.id = data.get('id')
+        self.album_id = data.get('albumId')
+        self.added_at = datetime.fromisoformat(data.get("timestamp"))
+
+    def get_url(self):
+        return f"https://music.yandex.ru/album/{self.album_id}/track/{self.id}"
+
+    def download_link(
+        self,
+        bitrateInKbps: int = 192
+    ) -> str:
+        return Track.download_link(self, bitrateInKbps)
 
 
 de_list = {
