@@ -4,11 +4,11 @@ from aiohttp.client import ClientResponse
 from typing import Optional, Mapping, Any, Coroutine
 
 
-class Requsts:
+class Requests:
     def __init__(self, session: Optional[aiohttp.ClientSession] = None) -> None:
         self.headers = {}
-        self.session = session
         self.base_url = "https://api.music.yandex.net"
+        self.session = session
 
     async def request(
         self,
@@ -43,6 +43,7 @@ class Requsts:
                 cookies=cookies,
                 headers=headers
             )
+        responce.raise_for_status()
         return responce
 
     def get(
@@ -61,7 +62,7 @@ class Requsts:
         method = "POST"
         return self.request(method, url, **kwargs)
 
-    def de_json(self, responce: ClientResponse):
+    def de_json(self, responce: ClientResponse) -> Optional[dict]:
         return responce.json(loads=orjson.loads)
 
     async def read(

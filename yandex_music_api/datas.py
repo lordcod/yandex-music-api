@@ -1,11 +1,11 @@
 from datetime import datetime
-from .coonector import Requsts
+from .coonector import Requests
 from typing import List
 from .util import get_download_info, download_track
 
 
 class Artist:
-    def __init__(self, requests: Requsts, data: dict) -> None:
+    def __init__(self, requests: Requests, data: dict) -> None:
         self.requests = requests
         self.data = data
         self.id: int = data.get('id')
@@ -22,7 +22,7 @@ class Artist:
 
 
 class Playlist:
-    def __init__(self, requests: Requsts, data: dict) -> None:
+    def __init__(self, requests: Requests, data: dict) -> None:
         self.requests = requests
         self.data = data
         self.owner: dict = data.get('owner')
@@ -34,7 +34,7 @@ class Playlist:
 
 
 class Album:
-    def __init__(self, requests: Requsts, data: dict) -> None:
+    def __init__(self, requests: Requests, data: dict) -> None:
         self.requests = requests
         self.data = data
         self.id: int = data.get('id')
@@ -54,7 +54,7 @@ class Album:
 
 
 class Track:
-    def __init__(self, requests: Requsts, data: dict) -> None:
+    def __init__(self, requests: Requests, data: dict) -> None:
         self.requests = requests
         self.data = data
         self.id: int = data.get('id')
@@ -88,7 +88,7 @@ class Track:
 
 
 class LikeTrack:
-    def __init__(self, requests: Requsts, data: dict) -> None:
+    def __init__(self, requests: Requests, data: dict) -> None:
         self.requests = requests
         self.data = data
         self.id = data.get('id')

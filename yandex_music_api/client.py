@@ -1,24 +1,27 @@
-from .coonector import Requsts
+from .coonector import Requests
 from .datas import Album, Artist, Track, Playlist, de_list, LikeTrack
-from typing import Optional, List, Union, Literal
+from typing import Optional, List, Union, Literal, overload
+from functools import lru_cache
+
 
 
 class Client:
     def __init__(
         self,
         token: str,
-        requests: Optional[Requsts] = None
+        requests: Optional[Requests] = None
     ) -> None:
         self.token = token
-        self.requests = requests or Requsts()
+        self.requests = requests or Requests()
         self.userid = None
 
         self.requests.set_authorization(token)
-        self.base_url = "https://api.music.yandex.net"
+        self.base_url = self.requests.base_url
 
     def account_info(self):
         return self.requests.read_json(f"{self.base_url}/account/status")
 
+    @lru_cache()
     async def get_uid(self):
         if self.userid is None:
             try:
@@ -27,6 +30,7 @@ class Client:
                 return
         else:
             return self.userid
+
 
     async def search(
         self,
@@ -82,7 +86,7 @@ class Client:
 
     async def dislike_track(self, tracks: Union[Track, List[Track]]) -> None:
         userid = await self.get_uid()
-        tracks = tracks if isinstance(tracks, (list, tuple, set)) else [tracks]
+        tracks = tracks if hasattr(tracks, '__iter__', None) is not None else [tracks]
 
         url = f"{self.base_url}/users/{userid}/likes/tracks/remove"
         data = {"track-ids": [track.id for track in tracks]}
