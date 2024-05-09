@@ -4,6 +4,7 @@ class YandexMusicException(Exception):
     """Possible links in the Yandex Music Library Api for LordCord"""
 
 
+
 class NotFound(YandexMusicException):
     def __init__(self,
                  message: str,
@@ -18,3 +19,7 @@ class NotFound(YandexMusicException):
 
     def __str__(self) -> str:
         return self.message
+
+class BitrateNotFound(YandexMusicException):
+    def __init__(self, bitrateInKbps: int) -> None:
+        super().__init__(f"Bitrate {bitrateInKbps} not found.")

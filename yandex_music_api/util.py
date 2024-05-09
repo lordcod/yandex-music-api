@@ -1,4 +1,4 @@
-from .coonector import Requsts
+from .coonector import Requests
 from hashlib import md5
 import xmltodict
 
@@ -18,7 +18,7 @@ def decode_download_info(xmldata: str) -> str:
 
 async def get_download_info(
     track_id: int,
-    requests: Requsts,
+    requests: Requests,
     bitrateInKbps: int = 192
 ) -> str:
     json = await requests.read_json(f'{requests.base_url}/tracks/{track_id}/download-info')
@@ -32,7 +32,7 @@ async def get_download_info(
 
 
 async def download_track(
-    requests: Requsts,
+    requests: Requests,
     downloadInfoUrl: str
 ) -> str:
     data = await requests.read(downloadInfoUrl)

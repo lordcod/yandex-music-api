@@ -1,5 +1,5 @@
 from yandex_music_api import Client
-from yandex_music_api.coonector import Requsts
+from yandex_music_api.coonector import Requests
 from aiohttp import ClientSession
 import os
 import asyncio
@@ -13,7 +13,7 @@ token = os.environ.get('yandex_api_token')
 
 async def main():
     session = ClientSession()
-    requests = Requsts(session)
+    requests = Requests(session)
     client = Client(token, requests)
 
     track = await client.search('Time', with_only_result=True)
