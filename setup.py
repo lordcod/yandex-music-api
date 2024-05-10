@@ -7,7 +7,7 @@ def readme():
 
 setup(
     name='yandex_music_api',
-    version='1.0.3',
+    version='1.0.4',
     author='LordCode',
     author_email='support@lordcord.fun',
     description='This is my first module',
