@@ -1,36 +1,28 @@
-from .coonector import Requests
+import asyncio
+import aiohttp
+from yandex_music_api.http import HTTPClient
+from yandex_music_api.state import ConnectionState
 from .datas import Album, Artist, Track, Playlist, de_list, LikeTrack
-from typing import Optional, List, Union, Literal, overload
+from typing import Optional, List, Union, Literal
 from functools import lru_cache
-
 
 
 class Client:
     def __init__(
         self,
-        token: str,
-        requests: Optional[Requests] = None
+        token: str
     ) -> None:
+        session = aiohttp.ClientSession()
+        loop = asyncio.get_event_loop()
+        http = HTTPClient(session=session, loop=loop)
+        http.token = token
+        self._state = ConnectionState(
+            session=session, httpclient=http, loop=loop, token=token, client=self)
         self.token = token
-        self.requests = requests or Requests()
         self.userid = None
 
-        self.requests.set_authorization(token)
-        self.base_url = self.requests.base_url
-
-    def account_info(self):
-        return self.requests.read_json(f"{self.base_url}/account/status")
-
-    @lru_cache()
-    async def get_uid(self):
-        if self.userid is None:
-            try:
-                self.userid = (await self.account_info())['result']['account']['uid']
-            except KeyError:
-                return
-        else:
-            return self.userid
-
+    async def account_info(self):
+        return self._state.create_user(await self._state.http.get_account_info())
 
     async def search(
         self,
@@ -39,18 +31,11 @@ class Client:
         with_only_result: bool = False
     ) -> Union[List[Union[Artist, Album, Track, Playlist]],
                Artist, Album, Track, Playlist]:
-        params = {
-            'text': text,
-            'nocorrect': 'False',
-            'type': 'all',
-            'page': '0',
-            'playlist-in-best': 'True'
-        }
-        json = await self.requests.read_json(f'{self.base_url}/search', params=params)
+        json = await self._state.http.search(text=text, object_type=object_type)
         ostype = object_type+'s' if object_type != 'best' else object_type
         if object_type == 'best':
-            return de_list[json['result']['best']['type']](self.requests, json['result']['best']['result'])
-        results = [de_list[object_type](self.requests, res)
+            return de_list[json['result']['best']['type']](self._state, json['result']['best']['result'])
+        results = [de_list[object_type](self._state, res)
                    for res in json['result'][ostype]['results']]
 
         if with_only_result:
@@ -63,42 +48,25 @@ class Client:
         object_type: Literal['track', 'album', 'playlist', 'artist'],
         with_only_result: bool = False
     ) -> Union[Artist, Album, Track, Playlist, List[Union[Artist, Album, Track, Playlist]]]:
-        params = {'with-positions': 'True', f'{object_type}-ids': ids}
+        object_requests = {
+            'track': self._state.http.get_tracks,
+            'album': self._state.http.get_albums,
+            'playlist': self._state.http.get_playlists,
+            'artist': self._state.http.get_artists
+        }
 
-        url = f"{self.base_url}/{object_type}s{'/list' if object_type == 'playlist' else ''}"
-
-        data = await self.requests.read_json(url, params=params)
-        results = [de_list[object_type](self.requests, obj)
+        data = await object_requests[object_type](ids)
+        results = [de_list[object_type](self._state, obj)
                    for obj in data.get('result', [])]
 
         if with_only_result:
             return None if not results else results[0]
         return results
 
-    async def like_track(self, tracks: Union[Track, List[Track]]) -> None:
-        userid = await self.get_uid()
-        tracks = tracks if isinstance(tracks, (list, tuple, set)) else [tracks]
-
-        url = f"{self.base_url}/users/{userid}/likes/tracks/add-multiple"
-        data = {"track-ids": [track.id for track in tracks]}
-
-        await self.requests.post(url, data=data)
-
-    async def dislike_track(self, tracks: Union[Track, List[Track]]) -> None:
-        userid = await self.get_uid()
-        tracks = tracks if hasattr(tracks, '__iter__', None) is not None else [tracks]
-
-        url = f"{self.base_url}/users/{userid}/likes/tracks/remove"
-        data = {"track-ids": [track.id for track in tracks]}
-
-        responce = await self.requests.post(url, data=data)
-        await self.requests.close_res(responce)
-
     async def get_likes_tracks(self) -> List[LikeTrack]:
-        userid = await self.get_uid()
+        userid = self._state.userid
 
-        url = f"{self.base_url}/users/{userid}/likes/tracks"
-        responce = await self.requests.read_json(url)
+        responce = await self._state.http.get_likes_tracks(userid)
         tracks_data = responce["result"]["library"]["tracks"]
 
-        return [LikeTrack(self.requests, ltrd) for ltrd in tracks_data]
+        return [LikeTrack(self._state, ltrd) for ltrd in tracks_data]
