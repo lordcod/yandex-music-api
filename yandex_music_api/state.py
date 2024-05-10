@@ -7,8 +7,11 @@ import aiohttp
 
 if TYPE_CHECKING:
     from .http import HTTPClient
-    from yandex_music_api.datas import Track
-    from yandex_music_api.client import Client
+    from .track import Track
+    from .user import User
+    from .client import Client
+else:
+    from .util import de_list
 
 
 class ConnectionState:
@@ -25,19 +28,28 @@ class ConnectionState:
         self.loop = loop
         self.token = token
         self.client = client
+        self.de_list = de_list
 
         self._tracks = {}
+        self._users = {}
         self.userid = None
 
-    def _create_user(self, account_info: dict) -> dict:
+    def _identify(self, account_info: dict) -> dict:
         try:
-            self.userid = account_info['result']['account']['uid']
+            self.userid = account_info['account']['uid']
         except KeyError:
             pass
         return account_info
 
-    def store_track(self, track: Track) -> None:
+    def store_user(self, user: User) -> None:
+        self._users[user.id] = user
+
+    def get_user(self, user_id: int) -> Optional[User]:
+        return self._users.get(user_id)
+
+    def store_track(self, track: Track) -> Track:
         self._tracks[track.id] = track
+        return track
 
     def get_track(self, id: int) -> Optional[Track]:
         return self._tracks.get(id)

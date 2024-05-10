@@ -1,10 +1,14 @@
 import asyncio
 import aiohttp
+
+from yandex_music_api.artist import Artist
+from yandex_music_api.album import Album
+from yandex_music_api.playlist import Playlist
+from yandex_music_api.track import ShortTrack, Track
 from yandex_music_api.http import HTTPClient
 from yandex_music_api.state import ConnectionState
-from .datas import Album, Artist, Track, Playlist, de_list, LikeTrack
-from typing import Optional, List, Union, Literal
-from functools import lru_cache
+
+from typing import List, Union, Literal
 
 
 class Client:
@@ -21,8 +25,8 @@ class Client:
         self.token = token
         self.userid = None
 
-    async def account_info(self):
-        return self._state.create_user(await self._state.http.get_account_info())
+    async def identify(self):
+        return self._state._identify(await self._state.http.get_account_info())
 
     async def search(
         self,
@@ -32,41 +36,96 @@ class Client:
     ) -> Union[List[Union[Artist, Album, Track, Playlist]],
                Artist, Album, Track, Playlist]:
         json = await self._state.http.search(text=text, object_type=object_type)
-        ostype = object_type+'s' if object_type != 'best' else object_type
+        objtype = object_type+'s' if object_type != 'best' else object_type
         if object_type == 'best':
-            return de_list[json['result']['best']['type']](self._state, json['result']['best']['result'])
-        results = [de_list[object_type](self._state, res)
-                   for res in json['result'][ostype]['results']]
+            return self._state.de_list[json['best']['type']](self._state, json['best'])
+        results = [self._state.de_list[object_type](self._state, res)
+                   for res in json[objtype]['results']]
 
         if with_only_result:
             return None if not results else results[0]
         return results
 
-    async def get_list(
+    async def get_playlists(
         self,
-        ids: Union[List[Union[str, int]], int, str],
-        object_type: Literal['track', 'album', 'playlist', 'artist'],
+        playlist_ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True,
         with_only_result: bool = False
-    ) -> Union[Artist, Album, Track, Playlist, List[Union[Artist, Album, Track, Playlist]]]:
-        object_requests = {
-            'track': self._state.http.get_tracks,
-            'album': self._state.http.get_albums,
-            'playlist': self._state.http.get_playlists,
-            'artist': self._state.http.get_artists
-        }
-
-        data = await object_requests[object_type](ids)
-        results = [de_list[object_type](self._state, obj)
-                   for obj in data.get('result', [])]
+    ) -> Union[Playlist, List[Playlist]]:
+        data = await self._state.http.get_playlists(
+            playlist_ids,
+            with_positions
+        )
+        results = [Playlist(self._state, playlist_data)
+                   for playlist_data in data]
 
         if with_only_result:
             return None if not results else results[0]
         return results
 
-    async def get_likes_tracks(self) -> List[LikeTrack]:
+    async def get_artists(
+        self,
+        artists_ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True,
+        with_only_result: bool = False
+    ) -> Union[Artist, List[Artist]]:
+        data = await self._state.http.get_artists(
+            artists_ids,
+            with_positions
+        )
+        results = [Artist(self._state, playlist_data)
+                   for playlist_data in data]
+
+        if with_only_result:
+            return None if not results else results[0]
+        return results
+
+    async def get_album(
+        self,
+        album_ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True,
+        with_only_result: bool = False
+    ) -> Union[Album, List[Album]]:
+        data = await self._state.http.get_albums(
+            album_ids,
+            with_positions
+        )
+        results = [Album(self._state, album_data)
+                   for album_data in data]
+
+        if with_only_result:
+            return None if not results else results[0]
+        return results
+
+    async def get_track(
+        self,
+        track_ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True,
+        with_only_result: bool = False
+    ) -> Union[Track, List[Track]]:
+        data = await self._state.http.get_tracks(
+            track_ids,
+            with_positions
+        )
+        results = [Track(self._state, track_data)
+                   for track_data in data]
+
+        if with_only_result:
+            return None if not results else results[0]
+        return results
+
+    async def get_likes_tracks(self) -> List[ShortTrack]:
         userid = self._state.userid
 
         responce = await self._state.http.get_likes_tracks(userid)
-        tracks_data = responce["result"]["library"]["tracks"]
+        tracks_data = responce["library"]["tracks"]
 
-        return [LikeTrack(self._state, ltrd) for ltrd in tracks_data]
+        return [ShortTrack(self._state, ltrd) for ltrd in tracks_data]
+
+    async def get_dislikes_tracks(self) -> List[ShortTrack]:
+        userid = self._state.userid
+
+        responce = await self._state.http.get_dislikes_tracks(userid)
+        tracks_data = responce['library']['tracks']
+
+        return [ShortTrack(self._state, ltrd) for ltrd in tracks_data]

@@ -1,6 +1,7 @@
 import asyncio
+import time
 from types import TracebackType
-from typing import Any, ClassVar, Dict, List, Literal, Optional, Self, Type, Union
+from typing import Any, ClassVar, Coroutine, Dict, List, Literal, Optional, Self, Type, Union
 
 from urllib.parse import quote
 
@@ -8,6 +9,8 @@ import aiohttp
 
 from yandex_music_api.exceptions import (
     Forbidden, HTTPException, HTTPNotFound, YandexMusicServerError)
+from yandex_music_api.types import (AlbumPayload, ArtistBriefInfoPayload, ArtistPayload, ArtistWithAlbumsPayload, ArtistWithTrackPayload, LibraryPlaylistPayload, PlaylistPayload,
+                                    PlaylistRecommendationsPayload, SearchPayload, SimilarTracksPayload, SupplementPayload, TrackDownloadinfoPayload, TrackListPayload, TrackPayload)
 from . import util
 
 
@@ -26,9 +29,10 @@ async def json_or_text(response: aiohttp.ClientResponse) -> Union[Dict[str, Any]
 def parse_params(params: dict):
     new_params = {}
     for k, v in params.items():
-        if not isinstance(v, (str, int, bool)):
-            raise TypeError
-        new_params[k] = str(v).lower()
+        if isinstance(v, list):
+            new_params[k] = ','.join(v)
+        if isinstance(v, (str, int, bool)):
+            new_params[k] = str(v).lower()
     return new_params
 
 
@@ -80,6 +84,7 @@ class HTTPClient:
         self.loop = loop
         self._locks: Dict[str, asyncio.AbstractEventLoop] = {}
         self.user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 YaBrowser/24.4.0.0 Safari/537.36'
+        self.music_agent = 'YandexMusicAndroid/1011570100'
 
     async def request(
         self,
@@ -92,6 +97,7 @@ class HTTPClient:
         # header creation
         headers: Dict[str, str] = {
             "User-Agent": self.user_agent,
+            "X-Yandex-Music-Client": self.music_agent
         }
 
         if self.token is not None:
@@ -113,7 +119,9 @@ class HTTPClient:
             data = await json_or_text(response)
 
             if 300 > response.status >= 200:
-                return data
+                if isinstance(data, str):
+                    return data
+                return data['result']
 
             # we are being rate limited
             if response.status == 429:
@@ -131,6 +139,213 @@ class HTTPClient:
             else:
                 raise HTTPException(response, data)
 
+    # ? Playlist
+
+    def get_user_playlists(self, user_id: int) -> Coroutine[Any, Any, List[PlaylistPayload]]:
+        route = Route(
+            "GET", "/users/{user_id}/playlists/list", user_id=user_id)
+        return self.request(route)
+
+    def get_playlist(self, user_id: int, kind: int) -> Coroutine[Any, Any, PlaylistPayload]:
+        route = Route(
+            "GET", "/users/{user_id}/playlists/{kind}", user_id=user_id, kind=kind)
+        return self.request(route)
+
+    def get_playlists_from_user(self, user_id: int, kinds: List[int], mixed: bool = False, rich_tracks: bool = False) -> Coroutine[Any, Any, List[PlaylistPayload]]:
+        route = Route(
+            "GET", "/users/{user_id}/playlists", user_id=user_id)
+        params = {
+            "kinds": kinds,
+            "mixed": mixed,
+            "rich-tracks": rich_tracks
+        }
+        return self.request(route, params=params)
+
+    def create_playlist(self, user_id: int, title: str, visibility: Literal["public", "private"]) -> Coroutine[Any, Any, PlaylistPayload]:
+        route = Route(
+            'POST', '/users/{user_id}/playlists/create', user_id=user_id)
+        data = {
+            "title": title,
+            "visibility": visibility
+        }
+        self.request(route, data=data)
+
+    def edit_playlist_name(self, user_id: int, kind: int, title: str) -> Coroutine[Any, Any, PlaylistPayload]:
+        route = Route(
+            'POST', '/users/{user_id}/playlists/{kind}/name', user_id=user_id, kind=kind)
+        data = {"value": title}
+        self.request(route, data=data)
+
+    def delete_playlist(self, user_id: int, kind: int) -> Coroutine[Any, Any, str]:
+        route = Route(
+            'POST', '/users/{user_id}/playlists/{kind}/delete', user_id=user_id, kind=kind)
+        self.request(route)
+
+    def edit_playlist_tracks(self, user_id: int, kind: int, diff: dict, revision: str) -> Coroutine[Any, Any, PlaylistPayload]:
+        """
+        {"diff":{"op":"insert","at":0,"tracks":[{"id":"20599729","albumId":"2347459"}]}} - для добавления,
+        {"diff":{"op":"delete","from":0,"to":1,"tracks":[{"id":"20599729","albumId":"2347459"}]}} - для удаления треков
+        """
+        route = Route(
+            'POST', '/users/{user_id}/playlists/{kind}/change-relative', user_id=user_id, kind=kind)
+        data = {
+            "diff": util.to_json(diff),
+            "revision": revision
+        }
+        self.request(route, data=data)
+
+    def edit_playlist_visibility(self, user_id: int, kind: int, visibility: Literal["public", "private"]) -> Coroutine[Any, Any, PlaylistPayload]:
+        route = Route(
+            'POST', '/users/{user_id}/playlists/{kind}/visibility', user_id=user_id, kind=kind)
+        data = {"value": visibility}
+        self.request(route, data=data)
+
+    def get_playlist_recommendations(self, user_id: int, kind: int) -> Coroutine[Any, Any, PlaylistRecommendationsPayload]:
+        route = Route(
+            'GET', '/users/{userId}/playlists/{kind}/recommendations', user_id=user_id, kind=kind)
+        self.request(route)
+
+    # ? Like/Dislike
+
+    def get_likes_tracks(self, userid: int) -> Coroutine[Any, Any, LibraryPlaylistPayload]:
+        route = Route(
+            "GET", "/users/{userid}/likes/tracks", userid=userid)
+
+        return self.request(route)
+
+    def get_dislikes_tracks(self, userid: int) -> Coroutine[Any, Any, LibraryPlaylistPayload]:
+        route = Route(
+            "GET", "/users/{userid}/dislikes/tracks", userid=userid)
+
+        return self.request(route)
+
+    def like_track(
+        self,
+        userid: int,
+        tracks_ids: List[Union[str, int]]
+    ) -> Coroutine[Any, Any, None]:
+        route = Route(
+            "POST", "/users/{userid}/likes/tracks/add-multiple", userid=userid)
+        data = {"track-ids": tracks_ids}
+        return self.request(route, data=data)
+
+    def dislike_track(
+        self,
+        userid: int,
+        tracks_ids: List[Union[str, int]]
+    ) -> Coroutine[Any, Any, None]:
+        route = Route(
+            "POST", "/users/{userid}/likes/tracks/remove", userid=userid)
+        data = {"track-ids": tracks_ids}
+        return self.request(route, data=data)
+
+    # ? Tracks
+    def get_tracks(
+        self,
+        ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True
+    ) -> Coroutine[Any, Any, List[TrackPayload]]:
+        params = {'with-positions': with_positions, 'track-ids': ids}
+        route = Route("GET", "/tracks")
+        return self.request(route, params=params)
+
+    def get_download_info(self, track_id: int) -> Coroutine[Any, Any, List[TrackDownloadinfoPayload]]:
+        route = Route(
+            'GET', f'/tracks/{track_id}/download-info', track_id=track_id)
+        return self.request(route)
+
+    def get_track_additionally_info(self, track_id: int) -> Coroutine[Any, Any, SupplementPayload]:
+        route = Route(
+            'GET', f'/tracks/{track_id}/supplement', track_id=track_id)
+        return self.request(route)
+
+    def get_similar_track(self, track_id: int) -> Coroutine[Any, Any, SimilarTracksPayload]:
+        route = Route(
+            'GET', f'/tracks/{track_id}/similar', track_id=track_id)
+        return self.request(route)
+
+    def get_track_lyrics(self, track_id: int, timestamp: int, sign: str):
+        route = Route(
+            'GET', f'/tracks/{track_id}/lyrics', track_id=track_id)
+        params = {
+            'timeStamp': timestamp,
+            'sign': sign
+        }
+        return self.request(route, params=params)
+
+    # ? Albums
+
+    def get_album(self, album_id: int) -> Coroutine[Any, Any, AlbumPayload]:
+        route = Route(
+            'GET', '/albums/{album_id}', album_id=album_id)
+        return self.request(route)
+
+    def get_tracks_with_album(self, album_id: int) -> Coroutine[Any, Any, AlbumPayload]:
+        route = Route(
+            'GET', '/albums/{album_id}/with-tracks', album_id=album_id)
+        return self.request(route)
+
+    def get_albums(
+        self,
+        ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True
+    ) -> Coroutine[Any, Any, List[AlbumPayload]]:
+        params = {'with-positions': with_positions, 'album-ids': ids}
+        route = Route("GET", "/albums")
+        return self.request(route, params=params)
+
+    # ? Playlist
+    def get_playlists(
+        self,
+        ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True
+    ) -> Coroutine[Any, Any, List[PlaylistPayload]]:
+        params = {'with-positions': with_positions, 'playlists-ids': ids}
+        route = Route("GET", "/playlists/list")
+        return self.request(route, params=params)
+
+    # ? Artists
+
+    def get_artists(
+        self,
+        ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True
+    ) -> Coroutine[Any, Any, List[ArtistPayload]]:
+        params = {'with-positions': with_positions, 'artist-ids': ids}
+        route = Route("GET", "/artists")
+        return self.request(route, params=params)
+
+    def get_artist_track_ids(self, artist_id: int) -> Coroutine[Any, Any, ArtistPayload]:
+        route = Route(
+            "GET", "/artists/{artist_id}/track-ids-by-rating", artist_id=artist_id)
+        return self.request(route)
+
+    def get_artist_brief_info(self, artist_id: int) -> Coroutine[Any, Any, ArtistBriefInfoPayload]:
+        route = Route(
+            "GET", "/artists/{artist_id}/brief-info", artist_id=artist_id)
+        return self.request(route)
+
+    def get_artist_tracks(self, artist_id: int, page: int = 0, page_size: int = 20) -> Coroutine[Any, Any, ArtistWithTrackPayload]:
+        route = Route(
+            "GET", "/artists/{artist_id}/tracks", artist_id=artist_id)
+        params = {
+            'page': page,
+            'page-size': page_size
+        }
+        return self.request(route, params=params)
+
+    def get_artist_direct_albums(self, artist_id: int, page: int = 0, page_size: int = 20, sort_by: Literal['year', 'rating'] = 'rating') -> Coroutine[Any, Any, ArtistWithAlbumsPayload]:
+        route = Route(
+            "GET", "/artists/{artist_id}/direct-albums", artist_id=artist_id)
+        params = {
+            'page': page,
+            'page-size': page_size,
+            'sort-by': sort_by
+        }
+        return self.request(route, params=params)
+
+    # ? Ofter
+
     def get_account_info(self):
         route = Route("GET", "/account/status")
         return self.request(route)
@@ -142,7 +357,7 @@ class HTTPClient:
                              'artist', 'podcast', 'all'] = 'all',
         page: int = 0,
         nocorrect: bool = False
-    ):
+    ) -> Coroutine[Any, Any, SearchPayload]:
         route = Route("GET", "/search")
         params = {
             'text': text,
@@ -151,78 +366,6 @@ class HTTPClient:
             'page': page
         }
         return self.request(route, params=params)
-
-    def get_tracks(
-        self,
-        ids: Union[List[Union[str, int]], int, str],
-        with_positions: bool = True
-    ):
-        params = {'with-positions': with_positions, 'track-ids': ids}
-        route = Route("GET", "/tracks")
-        return self.request(route, params=params)
-
-    def get_albums(
-        self,
-        ids: Union[List[Union[str, int]], int, str],
-        with_positions: bool = True
-    ):
-        params = {'with-positions': with_positions, 'album-ids': ids}
-        route = Route("GET", "/albums")
-        return self.request(route, params=params)
-
-    def get_artists(
-        self,
-        ids: Union[List[Union[str, int]], int, str],
-        with_positions: bool = True
-    ):
-        params = {'with-positions': with_positions, 'artist-ids': ids}
-        route = Route("GET", "/artists")
-        return self.request(route, params=params)
-
-    def get_playlists(
-        self,
-        ids: Union[List[Union[str, int]], int, str],
-        with_positions: bool = True
-    ):
-        params = {'with-positions': with_positions, 'playlists-ids': ids}
-        route = Route("GET", "/playlists/list")
-        return self.request(route, params=params)
-
-    def like_track(
-        self,
-        userid: int,
-        tracks_ids: List[Union[str, int]]
-    ):
-        route = Route(
-            "POST", "/users/{userid}/likes/tracks/add-multiple", userid=userid)
-        data = {"track-ids": tracks_ids}
-        return self.request(route, data=data)
-
-    def dislike_track(
-        self,
-        userid: int,
-        tracks_ids: List[Union[str, int]]
-    ):
-        route = Route(
-            "POST", "/users/{userid}/likes/tracks/remove", userid=userid)
-        data = {"track-ids": tracks_ids}
-        return self.request(route, data=data)
-
-    def get_likes_tracks(self, userid: int):
-        route = Route(
-            "GET", "/users/{userid}/likes/tracks", userid=userid)
-
-        return self.request(route)
-
-    def get_download_info(self, track_id: int):
-        route = Route(
-            'GET', f'/tracks/{track_id}/download-info', track_id=track_id)
-        return self.request(route)
-
-    def get_tracks_with_album(self, album_id: int):
-        route = Route(
-            'GET', '/albums/{album_id}/with-tracks', album_id=album_id)
-        return self.request(route)
 
     async def get_from_downloadinfo(self, url: str) -> bytes:
         async with self.__session.get(url) as resp:
