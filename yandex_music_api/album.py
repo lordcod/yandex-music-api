@@ -27,6 +27,10 @@ class Album:
             self.release_date: datetime = datetime.fromisoformat(release_date)
 
     async def get_tracks(self) -> List[Track]:
-        json = await self._state.http.get_tracks_with_album(self.id)
+        json = await self._state.http.get_album_with_tracks(self.id)
         tracks = json["volumes"]
         return [self._state.de_list['track'](self._state, track_data) for datas in tracks for track_data in datas]
+
+    def __repr__(self) -> str:
+        artists_name = ', '.join([art.name for art in self.artists])
+        return f"<Album title='{self.title}' id={self.id} artists='{artists_name}'"

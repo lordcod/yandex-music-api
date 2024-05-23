@@ -136,7 +136,7 @@ class TrackItemPayload(TypedDict):
     playCount: int
     recent: bool
     timestamp: str
-    tracks: List[TrackPayload]
+    track: TrackPayload
 
 
 class TrackDownloadinfoPayload(TypedDict):
@@ -178,8 +178,8 @@ class PlaylistPayload(TypedDict):
 
 
 class PlaylistRecommendationsPayload(TypedDict):
-    batch_id: str
-    track: TrackPayload
+    batchId: str
+    tracks: List[TrackPayload]
 
 
 class LibraryPlaylistPayload(TypedDict):
@@ -279,11 +279,6 @@ class ArtistBriefInfoPayload(TypedDict):
     hasTrailer: bool
 
 
-class ArtistWithTracksPayload(TypedDict):
-    pager: PagerPayload
-    tracks: List[TrackPayload]
-
-
 class ArtistWithAlbumsPayload(TypedDict):
     pager: PagerPayload
     albums: List[AlbumPayload]
@@ -327,3 +322,7 @@ class SearchPayload(TypedDict):
     misspellCorrected: str
     misspellOriginal: str
     nocorrect: bool
+
+
+class DiffPayload(TypedDict):
+    diff: dict

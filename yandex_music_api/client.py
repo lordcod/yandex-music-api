@@ -23,7 +23,6 @@ class Client:
         self._state = ConnectionState(
             session=session, httpclient=http, loop=loop, token=token, client=self)
         self.token = token
-        self.userid = None
 
     async def identify(self):
         return self._state._identify(await self._state.http.get_account_info())
@@ -46,8 +45,51 @@ class Client:
             return None if not results else results[0]
         return results
 
+    async def get_playlist_from_userid(
+        self,
+        user_id: Union[int, str],
+        playlist_id: Union[int, str]
+    ) -> Playlist:
+        data = await self._state.http.get_playlist(user_id, playlist_id)
+        return Playlist(self._state, data)
+
+    async def get_from_my_playlist(self, playlist_id: Union[int, str]) -> Playlist:
+        uid = self._state.userid
+        return await self.get_playlist_from_userid(uid, playlist_id)
+
+    async def get_playlists_from_userid(
+        self,
+        user_id: Union[int, str],
+        playlist_id: Union[int, str],
+        mixed: bool = False,
+        rich_tracks: bool = False
+    ) -> List[Playlist]:
+        playlists = await self._state.http.get_playlists_from_user(user_id, playlist_id, mixed, rich_tracks)
+        return [Playlist(self._state, data) for data in playlists]
+
+    async def get_from_my_playlists(
+        self,
+        playlist_id: Union[int, str],
+        mixed: bool = False,
+        rich_tracks: bool = False
+    ) -> Playlist:
+        uid = self._state.userid
+        return await self.get_playlists_from_userid(uid, playlist_id, mixed, rich_tracks)
+
+    async def get_user_playlist(
+        self,
+        user_id: int
+    ) -> List[Playlist]:
+        playlists = await self._state.http.get_user_playlists(user_id)
+        return [Playlist(self._state, data) for data in playlists]
+
+    async def get_my_playlist(self) -> List[Playlist]:
+        uid = self._state.userid
+        return await self.get_user_playlist(uid)
+
     async def get_playlists(
         self,
+        # uid:playlistid (only uid)
         playlist_ids: Union[List[Union[str, int]], int, str],
         with_positions: bool = True,
         with_only_result: bool = False
@@ -129,3 +171,13 @@ class Client:
         tracks_data = responce['library']['tracks']
 
         return [ShortTrack(self._state, ltrd) for ltrd in tracks_data]
+
+    async def like_tracks(self, tracks: Union[List[Union[Track, ShortTrack]], Track, ShortTrack]) -> None:
+        tracks = tracks if isinstance(tracks, (list, set, tuple)) else [tracks]
+        track_ids = [track.id for track in tracks]
+        await self._state.http.like_track(self._state.userid, track_ids)
+
+    async def dislike_tracks(self, tracks: Union[List[Union[Track, ShortTrack]], Track, ShortTrack]) -> None:
+        tracks = tracks if isinstance(tracks, (list, set, tuple)) else [tracks]
+        track_ids = [track.id for track in tracks]
+        await self._state.http.like_track(self._state.userid, track_ids)

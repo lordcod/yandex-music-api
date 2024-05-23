@@ -168,42 +168,48 @@ class HTTPClient:
             "title": title,
             "visibility": visibility
         }
-        self.request(route, data=data)
+        return self.request(route, data=data)
+
+    def delete_playlist(self, user_id: int, kind: int) -> Coroutine[Any, Any, str]:
+        route = Route(
+            'POST', '/users/{user_id}/playlists/{kind}/delete', user_id=user_id, kind=kind)
+        return self.request(route)
 
     def edit_playlist_name(self, user_id: int, kind: int, title: str) -> Coroutine[Any, Any, PlaylistPayload]:
         route = Route(
             'POST', '/users/{user_id}/playlists/{kind}/name', user_id=user_id, kind=kind)
         data = {"value": title}
-        self.request(route, data=data)
+        return self.request(route, data=data)
 
-    def delete_playlist(self, user_id: int, kind: int) -> Coroutine[Any, Any, str]:
-        route = Route(
-            'POST', '/users/{user_id}/playlists/{kind}/delete', user_id=user_id, kind=kind)
-        self.request(route)
-
-    def edit_playlist_tracks(self, user_id: int, kind: int, diff: dict, revision: str) -> Coroutine[Any, Any, PlaylistPayload]:
-        """
-        {"diff":{"op":"insert","at":0,"tracks":[{"id":"20599729","albumId":"2347459"}]}} - для добавления,
-        {"diff":{"op":"delete","from":0,"to":1,"tracks":[{"id":"20599729","albumId":"2347459"}]}} - для удаления треков
-        """
+    def edit_playlist_tracks(self, user_id: int, kind: int, diff: dict, revision: int) -> Coroutine[Any, Any, PlaylistPayload]:
         route = Route(
             'POST', '/users/{user_id}/playlists/{kind}/change-relative', user_id=user_id, kind=kind)
         data = {
-            "diff": util.to_json(diff),
-            "revision": revision
+            "revision": revision,
+            "diff": util.to_json(diff)
         }
-        self.request(route, data=data)
+        print(data)
+        return self.request(route, data=data)
 
     def edit_playlist_visibility(self, user_id: int, kind: int, visibility: Literal["public", "private"]) -> Coroutine[Any, Any, PlaylistPayload]:
         route = Route(
             'POST', '/users/{user_id}/playlists/{kind}/visibility', user_id=user_id, kind=kind)
         data = {"value": visibility}
-        self.request(route, data=data)
+        return self.request(route, data=data)
 
     def get_playlist_recommendations(self, user_id: int, kind: int) -> Coroutine[Any, Any, PlaylistRecommendationsPayload]:
         route = Route(
-            'GET', '/users/{userId}/playlists/{kind}/recommendations', user_id=user_id, kind=kind)
-        self.request(route)
+            'GET', '/users/{user_id}/playlists/{kind}/recommendations', user_id=user_id, kind=kind)
+        return self.request(route)
+
+    def get_playlists(
+        self,
+        ids: Union[List[Union[str, int]], int, str],
+        with_positions: bool = True
+    ) -> Coroutine[Any, Any, List[PlaylistPayload]]:
+        params = {'with-positions': with_positions, 'playlist-ids': ids}
+        route = Route("GET", "/playlists/list")
+        return self.request(route, params=params)
 
     # ? Like/Dislike
 
@@ -280,7 +286,7 @@ class HTTPClient:
             'GET', '/albums/{album_id}', album_id=album_id)
         return self.request(route)
 
-    def get_tracks_with_album(self, album_id: int) -> Coroutine[Any, Any, AlbumPayload]:
+    def get_album_with_tracks(self, album_id: int) -> Coroutine[Any, Any, AlbumPayload]:
         route = Route(
             'GET', '/albums/{album_id}/with-tracks', album_id=album_id)
         return self.request(route)
@@ -292,16 +298,6 @@ class HTTPClient:
     ) -> Coroutine[Any, Any, List[AlbumPayload]]:
         params = {'with-positions': with_positions, 'album-ids': ids}
         route = Route("GET", "/albums")
-        return self.request(route, params=params)
-
-    # ? Playlist
-    def get_playlists(
-        self,
-        ids: Union[List[Union[str, int]], int, str],
-        with_positions: bool = True
-    ) -> Coroutine[Any, Any, List[PlaylistPayload]]:
-        params = {'with-positions': with_positions, 'playlists-ids': ids}
-        route = Route("GET", "/playlists/list")
         return self.request(route, params=params)
 
     # ? Artists

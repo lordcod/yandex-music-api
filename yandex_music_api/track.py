@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 from hashlib import md5
 import xmltodict
 
@@ -52,15 +52,20 @@ class Track:
         self.major: dict = data['major']
         self.artist_names: List[str] = [art.name for art in self.artists]
 
+    @property
+    def album(self) -> Optional[Album]:
+        if not self.albums:
+            return None
+        return self.albums[0]
+
     def get_image(self, size="1080x1080"):
         return f'https://{self.image.replace("%%", size)}'
 
     def get_url(self):
-        album = self.albums[0]
-        return f"https://music.yandex.ru/album/{album.id}/track/{self.id}"
+        return f"https://music.yandex.ru/album/{self.album.id}/track/{self.id}"
 
     def __repr__(self) -> str:
-        return f"<Track title='{self.title}' id={self.id}>"
+        return f"<Track title='{self.title}' id={self.id} album={self.album}>"
 
     def __str__(self) -> str:
         return f"{self.title} - {', '.join(self.artist_names)}"
@@ -101,6 +106,9 @@ class ShortTrack:
 
     def get_url(self) -> str:
         return f"https://music.yandex.ru/album/{self.album_id}/track/{self.id}"
+
+    async def _to_track(self) -> Track:
+        return await self._state.client.get_track(self.id, with_only_result=True)
 
     download_link = Track.download_link
     like = Track.like
