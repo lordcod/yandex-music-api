@@ -8,7 +8,7 @@ from yandex_music_api.track import ShortTrack, Track
 from yandex_music_api.http import HTTPClient
 from yandex_music_api.state import ConnectionState
 
-from typing import List, Union, Literal
+from typing import List, Union
 
 
 class Client:
@@ -24,8 +24,8 @@ class Client:
             session=session, httpclient=http, loop=loop, token=token, client=self)
         self.token = token
 
-    async def identify(self):
-        return self._state._identify(await self._state.http.get_account_info())
+    async def identify(self) -> None:
+        self._state._identify(await self._state.http.get_account_info())
 
     async def search(
         self,

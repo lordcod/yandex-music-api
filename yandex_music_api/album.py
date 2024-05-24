@@ -33,4 +33,4 @@ class Album:
 
     def __repr__(self) -> str:
         artists_name = ', '.join([art.name for art in self.artists])
-        return f"<Album title='{self.title}' id={self.id} artists='{artists_name}'"
+        return f"<Album title='{self.title}' id={self.id} artists='{artists_name}'>"

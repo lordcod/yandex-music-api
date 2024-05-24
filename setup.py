@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+
 def readme():
     with open('README.md', 'r') as f:
         return f.read()
@@ -7,7 +8,7 @@ def readme():
 
 setup(
     name='yandex_music_api',
-    version='1.0.4',
+    version='1.0.5',
     author='LordCode',
     author_email='support@lordcord.fun',
     description='This is my first module',

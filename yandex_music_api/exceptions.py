@@ -17,6 +17,8 @@ class HTTPException(YandexMusicException):
     def __init__(self, responce: aiohttp.ClientResponse, data: Any) -> None:
         self.responce = responce
         self.data = data
+        message = data if isinstance(data, str) else data['error']
+        super().__init__()
 
 
 class HTTPNotFound(HTTPException):

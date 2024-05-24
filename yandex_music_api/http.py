@@ -1,17 +1,27 @@
 import asyncio
-import time
 from types import TracebackType
 from typing import Any, ClassVar, Coroutine, Dict, List, Literal, Optional, Self, Type, Union
 
 from urllib.parse import quote
 
 import aiohttp
+import sys
 
-from yandex_music_api.exceptions import (
+from .exceptions import (
     Forbidden, HTTPException, HTTPNotFound, YandexMusicServerError)
-from yandex_music_api.types import (AlbumPayload, ArtistBriefInfoPayload, ArtistPayload, ArtistWithAlbumsPayload, ArtistWithTrackPayload, LibraryPlaylistPayload, PlaylistPayload,
-                                    PlaylistRecommendationsPayload, SearchPayload, SimilarTracksPayload, SupplementPayload, TrackDownloadinfoPayload, TrackListPayload, TrackPayload)
+from .types import (
+    AlbumPayload, ArtistBriefInfoPayload, ArtistPayload,
+    ArtistWithAlbumsPayload, ArtistWithTrackPayload, LibraryPlaylistPayload,
+    PlaylistPayload, PlaylistRecommendationsPayload, SearchPayload,
+    SimilarTracksPayload, SupplementPayload, TrackDownloadinfoPayload,
+    TrackPayload
+)
 from . import util
+from . import __version__
+
+_USER_AGENT = "YandexMusicClient (https://github.com/lordcod/yandex-music-api/ {0}) Python/{1[0]}.{1[1]} aiohttp/{2}".format(
+    __version__, sys.version_info, aiohttp.__version__
+)
 
 
 async def json_or_text(response: aiohttp.ClientResponse) -> Union[Dict[str, Any], str]:
@@ -83,7 +93,7 @@ class HTTPClient:
         self.__session = session
         self.loop = loop
         self._locks: Dict[str, asyncio.AbstractEventLoop] = {}
-        self.user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 YaBrowser/24.4.0.0 Safari/537.36'
+        self.user_agent = _USER_AGENT
         self.music_agent = 'YandexMusicAndroid/1011570100'
 
     async def request(

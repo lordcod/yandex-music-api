@@ -1,15 +1,26 @@
 from __future__ import annotations
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, TypedDict
 
 import aiohttp
+
+
+class DelistTypes(TypedDict):
+    track: Track
+    album: Album
+    playlist: Playlist
+    artist: Artist
 
 
 if TYPE_CHECKING:
     from .http import HTTPClient
     from .track import Track
+    from .album import Album
+    from .playlist import Playlist
+    from .artist import Artist
     from .user import User
     from .client import Client
+    de_list: DelistTypes
 else:
     from .util import de_list
 
