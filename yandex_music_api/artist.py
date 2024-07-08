@@ -18,10 +18,14 @@ class Artist:
         self.popular_track: List[Track] = [state.de_list['track'](
             state, trc_data) for addtionally in data.get('popularTracks', []) for trc_data in addtionally]
 
-    async def get_rating_tracks(self) -> List[Track]:
-        responce = await self._state.http.get_artist_tracks(self.id)
-        self.__init__(self._state, responce['artist'])
+    async def get_rating_tracks(self, page: int = 0, page_size: int = 20) -> List[Track]:
+        responce = await self._state.http.get_artist_tracks(
+            self.id,
+            page,
+            page_size
+        )
         tracks = responce["tracks"]
+        self.__init__(self._state, responce['artist'])
 
         return [self._state.store_track(self._state.de_list['track'](self._state, data)) for data in tracks]
 
