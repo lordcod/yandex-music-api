@@ -7,6 +7,7 @@ from yandex_music_api.playlist import Playlist
 from yandex_music_api.track import ShortTrack, Track
 from yandex_music_api.http import HTTPClient
 from yandex_music_api.state import ConnectionState
+from yandex_music_api.exceptions import NotFound
 
 from typing import List, Union
 
@@ -36,10 +37,13 @@ class Client:
                Artist, Album, Track, Playlist]:
         json = await self._state.http.search(text=text, object_type=object_type)
         objtype = object_type+'s' if object_type != 'best' else object_type
-        if object_type == 'best':
-            return self._state.de_list[json['best']['type']](self._state, json['best'])
-        results = [self._state.de_list[object_type](self._state, res)
-                   for res in json[objtype]['results']]
+        try:
+            if object_type == 'best':
+                return self._state.de_list[json['best']['type']](self._state, json['best'])
+            results = [self._state.de_list[object_type](self._state, res)
+                       for res in json[objtype]['results']]
+        except KeyError:
+            raise NotFound(f'{object_type} not found', request=text)
 
         if with_only_result:
             return None if not results else results[0]

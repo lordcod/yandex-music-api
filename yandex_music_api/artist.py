@@ -25,8 +25,12 @@ class Artist:
 
         return [self._state.store_track(self._state.de_list['track'](self._state, data)) for data in tracks]
 
-    async def get_direct_albums(self) -> List[Track]:
-        responce = await self._state.http.get_artist_direct_albums(self.id)
+    async def get_direct_albums(self, page: int = 0, page_size: int = 20) -> List[Track]:
+        responce = await self._state.http.get_artist_direct_albums(
+            self.id,
+            page,
+            page_size
+        )
         albums = responce['albums']
 
         return [self._state.store_track(self._state.de_list['album'](self._state, data)) for data in albums]

@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+import contextlib
+from typing import TYPE_CHECKING, List
 
 from yandex_music_api.types import PlaylistPayload
 
@@ -21,8 +22,16 @@ class Playlist:
         self.description = data.get('description')
         self.tags = data.get('tags')
         self.track_count = data['trackCount']
-        self.tracks = [state.de_list['track'](
-            state, track['track']) for track in data.get('tracks', [])]
+
+    @property
+    def tracks(self) -> List[Track]:
+        ret = []
+        for track_item in self.data.get('tracks'):
+            with contextlib.suppress(KeyError):
+                track = self._state.de_list['track'](
+                    self._state, track_item.get('track'))
+                ret.append(track)
+        return ret
 
     async def delete(self) -> None:
         await self._state.http.delete_playlist(self.id, self.kind)
