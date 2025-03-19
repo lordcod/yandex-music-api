@@ -27,7 +27,7 @@ _USER_AGENT = "YandexMusicClient (https://github.com/lordcod/yandex-music-api/ {
 async def json_or_text(response: aiohttp.ClientResponse) -> Union[Dict[str, Any], str]:
     text = await response.text(encoding="utf-8")
     try:
-        if "application/json;charset=utf-8" in response.headers["content-type"]:
+        if "application/json" in response.headers["content-type"]:
             return util.from_json(text)
     except KeyError:
         # Thanks Cloudflare
